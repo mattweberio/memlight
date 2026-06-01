@@ -1,0 +1,61 @@
+{
+  "name": "memlight",
+  "version": "0.1.0",
+  "description": "Embedded vector memory for AI agents. PGlite + pgvector, pluggable embedder, graph edges, tag scoping.",
+  "keywords": [
+    "memory",
+    "vector",
+    "pgvector",
+    "pglite",
+    "embeddings",
+    "agents",
+    "ai",
+    "embedded"
+  ],
+  "license": "MIT",
+  "author": "Matt Weber",
+  "homepage": "https://github.com/mattweberio/memlight#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattweberio/memlight.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mattweberio/memlight/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
