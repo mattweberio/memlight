@@ -28,12 +28,16 @@ git push -u origin main
 
 ```bash
 npm ci
-npm run publish        # → publish.sh: preflight, then npm publish (build+test via prepublishOnly)
+npm run release        # → publish.sh: preflight, then npm publish (build+test via prepublishOnly)
 ```
 
-`npm run publish` (and its alias `npm run release`) run `publish.sh`, which does
-the five-step contract: clean-tree/main/auth preflight, then `npm publish` (whose
-`prepublishOnly` builds + runs the tests), then a registry verify.
+`npm run release` runs `publish.sh`, which does the five-step contract:
+clean-tree/main/auth preflight, then `npm publish` (whose `prepublishOnly` builds
++ runs the tests), then a registry verify.
+
+The command is `npm run release`, **not** `npm run publish`: `publish` is a
+reserved npm lifecycle hook (npm auto-runs a script named `publish` right after
+`npm publish`), so a `publish` script recurses and double-publishes. Use `release`.
 
 ### npm 2FA: use an automation token
 

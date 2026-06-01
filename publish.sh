@@ -14,10 +14,14 @@
 #   //registry.npmjs.org/:_authToken=npm_xxxxxxxx
 # For an interactive one-off on a TOTP account you can pass --otp=CODE instead.
 #
-# Usage: npm run publish        (or: ./publish.sh)
-#        npm run publish -- --dry-run
+# Usage: npm run release        (or: ./publish.sh)
+#        npm run release -- --dry-run
 #        ./publish.sh --otp=123456
 #        ./publish.sh --skip-preflight   # emergency only
+#
+# NB: the command is `npm run release`, NOT `npm run publish` — `publish` is a
+# reserved npm lifecycle hook (npm auto-runs a script named `publish` AFTER
+# `npm publish`), which would recurse into this script. Hence `release`.
 
 set -euo pipefail
 
