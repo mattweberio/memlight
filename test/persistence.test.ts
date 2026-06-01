@@ -56,7 +56,7 @@ describe('persistence', () => {
     // First boot: write data, close.
     const m1 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     const stored = await m1.store({
@@ -70,7 +70,7 @@ describe('persistence', () => {
     // Second boot: same dataDir, fresh provider instance.
     const m2 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     try {
@@ -88,7 +88,7 @@ describe('persistence', () => {
   it('recall finds memories written in a previous session', async () => {
     const m1 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     await m1.store({ content: 'alpha bravo charlie', tags: ['set-a'] });
@@ -97,7 +97,7 @@ describe('persistence', () => {
 
     const m2 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     try {
@@ -113,7 +113,7 @@ describe('persistence', () => {
   it('edges persist across reopen', async () => {
     const m1 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     const a = await m1.store({ content: 'a' });
@@ -123,7 +123,7 @@ describe('persistence', () => {
 
     const m2 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     try {
@@ -142,7 +142,7 @@ describe('schema migrations', () => {
   it('records the current schema version on first init', async () => {
     const m = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     try {
@@ -180,7 +180,7 @@ describe('schema migrations', () => {
     // Boot once, write data, close.
     const m1 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     await m1.store({ content: 'before reinit' });
@@ -191,7 +191,7 @@ describe('schema migrations', () => {
     // should see the existing version and skip.
     const m2 = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     try {
@@ -220,7 +220,7 @@ describe('schema migrations', () => {
   it('records a description for each applied migration', async () => {
     const m = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
     await m.close();
@@ -246,7 +246,7 @@ describe('schema migrations', () => {
 
 describe('edge cases', () => {
   it('get on unknown id returns null', async () => {
-    const m = await createMemoryProvider({ dataDir: tmpDir, vectorDim: DIM });
+    const m = await createMemoryProvider({ dataDir: tmpDir, embedder: 'none', vectorDim: DIM });
     try {
       const got = await m.get('00000000-0000-0000-0000-000000000000');
       expect(got).toBeNull();
@@ -256,7 +256,7 @@ describe('edge cases', () => {
   }, 30_000);
 
   it('delete on unknown id returns false', async () => {
-    const m = await createMemoryProvider({ dataDir: tmpDir, vectorDim: DIM });
+    const m = await createMemoryProvider({ dataDir: tmpDir, embedder: 'none', vectorDim: DIM });
     try {
       const ok = await m.delete('00000000-0000-0000-0000-000000000000');
       expect(ok).toBe(false);
@@ -266,7 +266,7 @@ describe('edge cases', () => {
   }, 30_000);
 
   it('multi-tag recall returns only memories with ALL requested tags (AND semantics)', async () => {
-    const m = await createMemoryProvider({ dataDir: tmpDir, vectorDim: DIM });
+    const m = await createMemoryProvider({ dataDir: tmpDir, embedder: 'none', vectorDim: DIM });
     try {
       await m.store({ content: 'has both', tags: ['a', 'b'] });
       await m.store({ content: 'only a', tags: ['a'] });
@@ -289,7 +289,7 @@ describe('edge cases', () => {
     const zeroEmbedder: Embedder = async () => [];
     const m = await createMemoryProvider({
       dataDir: tmpDir,
-      embed: zeroEmbedder,
+      embedder: zeroEmbedder,
       vectorDim: DIM,
     });
     try {
@@ -309,7 +309,7 @@ describe('edge cases', () => {
     // doing exact element matching, NOT prefix matching. If pgvector's
     // jsonb containment ever started doing prefix match, every scope
     // would leak memories from sibling scopes. Lock the contract here.
-    const m = await createMemoryProvider({ dataDir: tmpDir, vectorDim: DIM });
+    const m = await createMemoryProvider({ dataDir: tmpDir, embedder: 'none', vectorDim: DIM });
     try {
       await m.store({ content: 'echo memory', tags: ['scope:agent:echo'] });
       await m.store({ content: 'echo2 memory', tags: ['scope:agent:echo2'] });

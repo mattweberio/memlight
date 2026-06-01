@@ -1,7 +1,7 @@
 {
   "name": "memlight",
-  "version": "0.1.0",
-  "description": "Embedded vector memory for AI agents. PGlite + pgvector, pluggable embedder, graph edges, tag scoping.",
+  "version": "0.2.0",
+  "description": "Zero-config embedded vector memory for AI agents. Bundled local embedder, OS storage, hybrid recall, decay, dedup. PGlite + pgvector.",
   "keywords": [
     "memory",
     "vector",
@@ -10,7 +10,11 @@
     "embeddings",
     "agents",
     "ai",
-    "embedded"
+    "embedded",
+    "semantic-search",
+    "rag",
+    "decay",
+    "dedup"
   ],
   "license": "MIT",
   "author": "Matt Weber",
@@ -52,7 +56,8 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@electric-sql/pglite": "^0.4.4"
+    "@electric-sql/pglite": "^0.4.4",
+    "@huggingface/transformers": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

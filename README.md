@@ -1,142 +1,217 @@
 # memlight
 
-**Embedded vector memory for AI agents.** PGlite + pgvector, pluggable embedder, graph edges, tag scoping. Zero-install — no Postgres server, no network, no API key required.
+[![npm version](https://img.shields.io/npm/v/memlight.svg)](https://www.npmjs.com/package/memlight)
+[![npm downloads](https://img.shields.io/npm/dm/memlight.svg)](https://www.npmjs.com/package/memlight)
+[![license](https://img.shields.io/npm/l/memlight.svg)](./LICENSE)
+[![types](https://img.shields.io/npm/types/memlight.svg)](./dist/index.d.ts)
+[![node](https://img.shields.io/node/v/memlight.svg)](https://nodejs.org)
 
-```bash
-npm install memlight
-```
+Embedded vector memory for AI agents. It runs inside your process, stores on the local machine, and works with no configuration. There is no server to run, no API key to set, and nothing to wire up before the first `store`.
+
+It is built on [PGlite](https://github.com/electric-sql/pglite) (Postgres compiled to WebAssembly) with [pgvector](https://github.com/pgvector/pgvector) for similarity search, and ships a local embedding model so semantic recall works out of the box.
+
+## Quick start
 
 ```ts
-import { createMemoryProvider } from 'memlight';
+import { createMemoryProvider } from 'memlight'
 
-const memory = await createMemoryProvider({
-  dataDir: './data/memory',
-  embed: async (text) => {
-    // Plug in any async function that returns a fixed-length number array.
-    // Local Ollama, OpenAI, ONNX, anything.
-    const res = await fetch('http://localhost:11434/api/embeddings', {
-      method: 'POST',
-      body: JSON.stringify({ model: 'nomic-embed-text', prompt: text }),
-    });
-    const { embedding } = await res.json();
-    return embedding;
-  },
-  vectorDim: 768, // must match your embedder's output
-});
+const memory = await createMemoryProvider()
 
 await memory.store({
-  content: 'Matt prefers concise responses with examples',
+  content: 'Matt prefers concise answers with examples',
   tags: ['preference', 'communication'],
   importance: 0.8,
-});
+})
 
-const hits = await memory.recall({
-  query: 'how does Matt like to be talked to',
-  tags: ['preference'],
-  limit: 5,
-});
-// → [{ id, content, tags, score: 0.87, ... }]
+const hits = await memory.recall({ query: 'how does Matt like to be talked to' })
+// hits[0].content -> 'Matt prefers concise answers with examples'
 ```
+
+That is the whole setup. No data directory, no embedder, no keys.
+
+## Install
+
+```bash
+npm add memlight
+pnpm add memlight
+bun add memlight
+```
+
+Requires Node 22 or newer.
 
 ## What it is
 
-- **Vector recall** via [pgvector](https://github.com/pgvector/pgvector) running inside [PGlite](https://github.com/electric-sql/pglite). Real cosine similarity, HNSW-indexed, query-by-natural-language.
-- **Tag scoping** layered on top — every memory carries `tags`, recall can filter to `tags @> [a, b]` (AND semantics) and the vector query runs within that subset.
-- **Graph edges** — `associate(fromId, toId, relation, strength)` and `neighbors(id)`. v0.1 ships 1-hop lookup; full traversal is on the v0.2 roadmap.
-- **Pluggable embedder** — bring your own async function. memlight calls it at store time and recall time. No model download bundled, no opinion on which provider you use.
-- **Zero-install** — PGlite is a WASM build of Postgres. No native compile, no Postgres server, no Docker, no Homebrew.
-- **Node 22+** because PGlite needs the modern WebAssembly streaming compile path.
+- **Zero config.** A bundled local embedder and an automatic storage location mean a working memory in two lines.
+- **Semantic recall.** Real cosine similarity over pgvector, blended with keyword overlap, tag overlap, and recency.
+- **Local and private.** Everything runs in process. No network at query time, no third party, no key.
+- **Embedded.** The whole database lives in one directory under the user's home. No Postgres server, no Docker, no native build.
+- **Swappable.** Bring your own embedder (Ollama, OpenAI, anything) when you want to.
 
-## Why not just use Postgres + pgvector?
+## What it is not
 
-You can — and once your data outgrows a single process, you should. memlight is for the **embedded** case: a desktop AI assistant, a CLI tool, a single-user agent. The whole DB lives in one directory under the user's home; no server to manage, no port to open.
+- Not a multi-process database. PGlite is single writer. One process owns a store at a time.
+- Not a distributed system. When your data outgrows a single machine, the schema is ordinary Postgres, so `pg_dump` and restore into a real Postgres with pgvector and your code keeps working.
 
-When you outgrow it, the schema is ordinary Postgres — `pg_dump` + `psql restore` into a real Postgres + pgvector and your code keeps working with the same SQL.
+## Defaults
+
+| Concern | Default | Override |
+| --- | --- | --- |
+| Embedder | `Xenova/bge-small-en-v1.5`, 384 dims, local | `embedder` option |
+| Storage | OS app-data dir, namespaced by `name` | `dataDir`, `name`, `scope` |
+| Recall | Hybrid: semantic + keyword + tag + recency | `weights` option |
+| Delete | Soft delete, recoverable | `delete(id, { hard: true })` |
+
+The model downloads once on first use and is cached on disk. After that it loads in about a second with no network.
+
+## Storage location
+
+memlight stores in the operating system's app-data directory, not in your repo or working directory. Pick a logical location with `name` (the app) and an optional `scope` (a project), and memlight resolves the real path for you.
+
+```ts
+// <os-data>/akemi
+const akemi = await createMemoryProvider({ name: 'akemi' })
+
+// <os-data>/homurai/mattweberio-homurai
+const project = await createMemoryProvider({ name: 'homurai', scope: 'mattweberio/homurai' })
+
+// exact path, your call
+const custom = await createMemoryProvider({ dataDir: '/srv/data/memory' })
+```
+
+The os-data root by platform:
+
+| Platform | Root |
+| --- | --- |
+| Linux and others | `$XDG_DATA_HOME` or `~/.local/share` |
+| macOS | `~/Library/Application Support` |
+| Windows | `%APPDATA%` or `~/AppData/Roaming` |
 
 ## API
 
 ```ts
 interface MemoryProvider {
-  store(input: StoreInput): Promise<{ id: string }>;
-  recall(query: RecallQuery): Promise<MemoryRecord[]>;
-  get(id: string): Promise<MemoryRecord | null>;
-  delete(id: string): Promise<boolean>;
-  associate(fromId: string, toId: string, relation: string, strength?: number): Promise<MemoryEdge>;
-  neighbors(id: string): Promise<MemoryEdge[]>;
-  count(): Promise<number>;
-  close(): Promise<void>;
+  store(input: StoreInput, options?: StoreOptions): Promise<StoreResult>
+  recall(query: RecallQuery): Promise<MemoryRecord[]>
+  get(id: string): Promise<MemoryRecord | null>
+  update(id: string, input: UpdateInput): Promise<MemoryRecord | null>
+  delete(id: string, options?: DeleteOptions): Promise<boolean>
+  restore(id: string): Promise<boolean>
+  checkDuplicate(content: string, threshold?: number): Promise<DuplicateCheck>
+  associate(fromId: string, toId: string, relation: string, strength?: number): Promise<MemoryEdge>
+  neighbors(id: string): Promise<MemoryEdge[]>
+  count(): Promise<number>
+  export(format?: 'jsonl'): Promise<string>
+  import(data: string, format?: 'jsonl'): Promise<{ imported: number }>
+  close(): Promise<void>
 }
 ```
 
-### `store(input)`
+### store
 
 | Field | Type | Notes |
-|---|---|---|
-| `id` | `string?` | Optional. memlight generates a UUIDv4 if omitted. Pass an explicit id to upsert. |
-| `content` | `string` | Required. Empty/whitespace content throws. |
-| `tags` | `string[]?` | Default `[]`. memlight indexes these with a GIN index for fast `@>` containment queries. |
-| `importance` | `number?` | 0..1. Stored for future decay strategies; does not affect recall ranking in v0.1. |
-| `type` | `string?` | Free-form label like `'Decision'`, `'Preference'`, `'Insight'`. memlight does not enumerate. |
-| `metadata` | `Record<string, unknown>?` | Stored as `jsonb`. Anything JSON-serializable. |
+| --- | --- | --- |
+| `id` | `string` | Optional. A UUID is generated when omitted. Pass an id to upsert. |
+| `content` | `string` | Required. Empty content throws. |
+| `tags` | `string[]` | Default `[]`. Recall can filter to memories that have all of a set of tags. |
+| `importance` | `number` | 0 to 1. Nudges recall ranking. |
+| `type` | `string` | Free-form label such as `Decision`, `Preference`. |
+| `metadata` | `Record<string, unknown>` | Stored as JSON. Anything serializable. |
 
-### `recall(query)`
+Pass `{ dedup: true }` as the second argument to skip the write and return the existing memory when a near-duplicate is already stored.
+
+### recall
 
 | Field | Type | Notes |
-|---|---|---|
-| `query` | `string?` | Natural-language query. Embedded via the configured embedder; cosine-ranked against memory vectors. Optional. |
-| `tags` | `string[]?` | Only return memories that have **all** of these tags (`@>` containment). |
-| `limit` | `number?` | Default 20. |
-| `minScore` | `number?` | Filter out results with score below this threshold. Default 0 (no threshold). |
+| --- | --- | --- |
+| `query` | `string` | Natural language. Embedded and ranked by similarity. |
+| `tags` | `string[]` | Only return memories that have all of these tags. |
+| `limit` | `number` | Default 20. |
+| `minScore` | `number` | Minimum semantic similarity 0 to 1. Default 0. |
+| `weights` | `Partial<SearchWeights>` | Override the ranking blend for this query. |
 
-When no embedder is configured **or** no `query` is given, recall falls back to the tag-only path: filtered rows ordered by `created_at DESC`.
+Recall ranks by a blend of semantic similarity, keyword overlap, tag overlap, and recency, with a small lift for higher importance. The default weights are `{ semantic: 0.45, keyword: 0.35, tag: 0.2 }` and they are renormalized across whichever signals a query actually uses. With a query and no embedder, recall ranks by keyword overlap. With no query, it returns the newest memories matching `tags`.
 
-### `associate(from, to, relation, strength?)` / `neighbors(id)`
+### config
 
-Lightweight graph layer. `associate('a-1', 'b-2', 'caused-by', 0.7)` writes an edge. `neighbors('a-1')` returns every edge where `a-1` is on either end. Cascade deletes happen via FK on the `memory_edges` table — deleting a memory removes its edges.
+| Field | Type | Notes |
+| --- | --- | --- |
+| `dataDir` | `string` | Explicit path. Overrides `name` and `scope`. `'memory://'` is ephemeral. |
+| `name` | `string` | App name for the default path. Default `memlight`. |
+| `scope` | `string` | Optional project id for per-project isolation. |
+| `embedder` | `Embedder \| 'none'` | Omit for the bundled default. `'none'` is keyword and tag only. A function brings your own. |
+| `vectorDim` | `number` | Defaults to the embedder's output (384 for the bundled default). Fixed at the first store. |
+| `weights` | `Partial<SearchWeights>` | Default ranking weights for every recall. |
 
-## Embedder
+## Swapping the embedder
 
-memlight does not ship an embedder. You bring one:
-
-| Backend | Cost | Setup |
-|---|---|---|
-| **[Ollama](https://ollama.com)** with `nomic-embed-text` | free, local, no network | `ollama pull nomic-embed-text` |
-| **OpenAI `text-embedding-3-small`** | ~$0.02 / 1M tokens | API key |
-| **Local ONNX** via `@xenova/transformers` | free, ~80 MB model download on first use | npm install + initial download |
-| **`undefined`** | — | falls back to tag-only recall |
-
-The embedder type is just `(text: string) => Promise<number[]>`. memlight fixes the column dimension on the first `store()` call based on the array length the embedder returned, so the embedder must produce a stable dim across calls.
-
-## Configuration
+The embedder is just `(text: string) => Promise<number[]>`. Pass your own to use a different model, and set `vectorDim` to match its output.
 
 ```ts
-interface MemoryProviderConfig {
-  dataDir: string;            // required, must be writable
-  embed?: Embedder;           // optional, falls back to tag-only when absent
-  vectorDim?: number;         // default 384, must match embedder output
-}
+// Ollama, local, free
+const memory = await createMemoryProvider({
+  vectorDim: 768,
+  embedder: async (text) => {
+    const res = await fetch('http://localhost:11434/api/embeddings', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'nomic-embed-text', prompt: text }),
+    })
+    const { embedding } = await res.json()
+    return embedding
+  },
+})
 ```
-
-## In-memory mode for tests
 
 ```ts
-const memory = await createMemoryProvider({ dataDir: 'memory://' });
+// Keyword and tag matching only, no vectors
+const memory = await createMemoryProvider({ embedder: 'none' })
 ```
 
-PGlite supports the `memory://` URI for ephemeral in-memory databases — no disk writes, no cleanup. Useful for unit tests; do not use for production.
+## In-memory mode
 
-## Limitations (v0.1)
+Pass `'memory://'` for an ephemeral database with no disk writes. Useful for tests.
 
-- **Single process.** PGlite is designed for one connection; opening the same `dataDir` from two processes is undefined behavior. The embedding daemon should be the only writer.
-- **No automatic schema migrations.** v0.1 schema is `CREATE TABLE IF NOT EXISTS`. When v0.2 ships schema changes, an explicit migration runner ships with it.
-- **No decay or expiry.** `importance` is stored but unused for ranking. v0.2 adds time-weighted decay.
-- **No backup/export tool.** `pg_dump` works against the PGlite data directory; a built-in `memlight export` ships in v0.2.
-- **`limit` is post-filter, not push-down for `tags`.** With very large stores you'll feel this; for personal-scale (tens of thousands of memories) it's fine.
+```ts
+const memory = await createMemoryProvider({ dataDir: 'memory://' })
+```
+
+## Graph edges
+
+Relate memories to each other and read the edges back.
+
+```ts
+await memory.associate(planId, blockerId, 'blocked_by', 0.8)
+const edges = await memory.neighbors(planId)
+```
+
+## Soft delete and restore
+
+Delete is recoverable by default. A soft-deleted memory drops out of recall, `get`, and `count`, and comes back with `restore`. Pass `{ hard: true }` to remove it for good.
+
+```ts
+await memory.delete(id)                  // recoverable
+await memory.restore(id)                 // back
+await memory.delete(id, { hard: true })  // gone
+```
+
+## Backup
+
+```ts
+const dump = await memory.export('jsonl')   // every live memory and edge
+await other.import(dump)                     // load it elsewhere
+```
+
+Export carries content, tags, importance, type, metadata, and edges. Embeddings are rebuilt on import, so a backup is portable across embedders.
+
+## Limitations
+
+- **Single process.** Opening the same store from two processes at once is unsupported.
+- **Recall reranks a candidate pool.** For very large stores the keyword and recency rerank runs over a bounded candidate set, not the entire table. Personal scale (tens of thousands of memories) is comfortable.
+- **Importance and recency are heuristics.** They nudge ranking; they do not expire memories. There is no TTL yet.
 
 ## License
 
 MIT. See [LICENSE](./LICENSE).
 
-## Where to find me
+## Source and issues
 
-Source and issues: [github.com/mattweberio/memlight](https://github.com/mattweberio/memlight). Published to npm as [`memlight`](https://www.npmjs.com/package/memlight).
+[github.com/mattweberio/memlight](https://github.com/mattweberio/memlight)

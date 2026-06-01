@@ -1,32 +1,42 @@
 /**
- * memlight — embedded vector memory for Akemi agents.
+ * memlight: embedded vector memory for AI agents.
  *
- * Public API:
+ * Zero config: the bundled embedder and OS app-data storage mean a
+ * working memory in two lines.
  *
- *   import { createMemoryProvider } from 'memlight';
+ *   import { createMemoryProvider } from 'memlight'
  *
- *   const memory = await createMemoryProvider({
- *     dataDir: '/home/you/.local/share/akemi/memory',
- *     embed: async (text) => myEmbedder(text),
- *   });
+ *   const memory = await createMemoryProvider()
+ *   await memory.store({ content: 'Matt prefers concise answers', tags: ['preference'] })
+ *   const hits = await memory.recall({ query: 'how does Matt like answers' })
  *
- *   await memory.store({ content: '...', tags: ['scope:agent:echo'] });
- *   const hits = await memory.recall({ query: 'what did I say about X?' });
- *
- * See README.md for design rationale.
+ * See README.md for the full API and design notes.
  */
 
 export {
   createMemoryProvider,
   readSchemaVersion,
   MEMLIGHT_SCHEMA_VERSION,
-} from './provider.js';
+} from './provider.js'
+export {
+  createDefaultEmbedder,
+  DEFAULT_EMBEDDING_MODEL,
+  DEFAULT_VECTOR_DIM,
+} from './embedder.js'
+export { osDataRoot, resolveDataDir, modelCacheDir, IN_MEMORY } from './paths.js'
+export { DEFAULT_SEARCH_WEIGHTS } from './types.js'
 export type {
   MemoryProvider,
   MemoryProviderConfig,
   MemoryRecord,
   MemoryEdge,
   StoreInput,
+  StoreOptions,
+  StoreResult,
+  UpdateInput,
+  DeleteOptions,
+  DuplicateCheck,
   RecallQuery,
+  SearchWeights,
   Embedder,
-} from './types.js';
+} from './types.js'

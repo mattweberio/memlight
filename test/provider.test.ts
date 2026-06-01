@@ -37,7 +37,7 @@ describe('memlight', () => {
   beforeEach(async () => {
     memory = await createMemoryProvider({
       dataDir: 'memory://',
-      embed: fakeEmbedder,
+      embedder: fakeEmbedder,
       vectorDim: DIM,
     });
   });
@@ -100,6 +100,7 @@ describe('memlight', () => {
   it('falls back to tag-only when no embedder is provided', async () => {
     const tagOnlyMemory = await createMemoryProvider({
       dataDir: 'memory://',
+      embedder: 'none',
       vectorDim: DIM,
     });
     try {
@@ -135,13 +136,23 @@ describe('memlight', () => {
     expect(neighbors[0]?.toId).toBe(b.id);
   });
 
-  it('cascades edge deletion when a memory is removed', async () => {
+  it('cascades edge deletion when a memory is hard-removed', async () => {
     const a = await memory.store({ content: 'x' });
     const b = await memory.store({ content: 'y' });
     await memory.associate(a.id, b.id, 'relates_to');
-    await memory.delete(a.id);
+    await memory.delete(a.id, { hard: true });
     const remaining = await memory.neighbors(b.id);
     expect(remaining.length).toBe(0);
+  });
+
+  it('soft-deletes by default and restores', async () => {
+    const a = await memory.store({ content: 'recoverable', tags: ['keep'] });
+    expect(await memory.delete(a.id)).toBe(true);
+    expect(await memory.get(a.id)).toBeNull();
+    expect(await memory.count()).toBe(0);
+    expect(await memory.restore(a.id)).toBe(true);
+    expect((await memory.get(a.id))?.content).toBe('recoverable');
+    expect(await memory.count()).toBe(1);
   });
 
   it('counts stored memories', async () => {
