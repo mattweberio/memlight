@@ -28,8 +28,27 @@ git push -u origin main
 
 ```bash
 npm ci
-npm publish        # prepublishOnly runs build + tests first; access is public
+npm run publish        # → publish.sh: preflight, then npm publish (build+test via prepublishOnly)
 ```
+
+`npm run publish` (and its alias `npm run release`) run `publish.sh`, which does
+the five-step contract: clean-tree/main/auth preflight, then `npm publish` (whose
+`prepublishOnly` builds + runs the tests), then a registry verify.
+
+### npm 2FA: use an automation token
+
+This npm account uses **web-based 2FA**, which a non-interactive shell can't
+complete (it errors `EOTP`). For any scripted publish, put an **automation
+token** in `~/.npmrc` — it bypasses 2FA for that token:
+
+```bash
+# npmjs.com → Access Tokens → Generate New Token → Automation
+echo "//registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxxxxxx" >> ~/.npmrc
+npm run publish
+```
+
+(On a TOTP account you could instead pass `./publish.sh --otp=123456`, but this
+account is web-2FA, so the token is the correct path.)
 
 `memlight` is free on npm. After publish, Akemi depends on it as a normal
 registry dependency (`"memlight": "^0.1.0"`) instead of the workspace link;

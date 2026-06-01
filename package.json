@@ -45,7 +45,9 @@
     "build": "tsc",
     "test": "vitest run",
     "type-check": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run build && npm test",
+    "publish": "bash publish.sh",
+    "release": "bash publish.sh"
   },
   "engines": {
     "node": ">=22.0.0"
