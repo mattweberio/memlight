@@ -2,6 +2,13 @@
 
 All notable changes to memlight.
 
+## 0.4.0 (2026-06-02)
+
+- `recall()` now accepts the same structured filters as `list()` (type, tags
+  with all/any match, importance range, created-at range). They restrict the
+  candidate set before ranking, so recall is a filtered semantic search. The
+  filter-building is shared between recall and list (one code path).
+
 ## 0.3.1 (2026-06-02)
 
 - `get()` and `list()` now include the stored `embedding` vector on each record,

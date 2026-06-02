@@ -105,18 +105,39 @@ export const DEFAULT_SEARCH_WEIGHTS: SearchWeights = {
 }
 
 /**
+ * Structured filter shared by {@link RecallQuery} and {@link ListFilter}:
+ * restrict the candidate set by type, tags, importance range, and creation
+ * date before ranking (recall) or ordering (list). Every field is optional.
+ */
+export interface StructuredFilter {
+  /** Restrict to a single `type`. */
+  type?: string
+  /** Restrict to memories carrying these tags. */
+  tags?: string[]
+  /** 'all' (default) requires every tag; 'any' requires at least one. */
+  tagMatch?: 'all' | 'any'
+  /** Inclusive lower bound on importance (0..1). */
+  minImportance?: number
+  /** Inclusive upper bound on importance (0..1). */
+  maxImportance?: number
+  /** Only memories created at or after this ISO timestamp. */
+  createdAfter?: string
+  /** Only memories created at or before this ISO timestamp. */
+  createdBefore?: string
+}
+
+/**
  * Query shape for {@link MemoryProvider.recall}.
  *
  * With a `query` and an embedder, recall ranks by a blend of semantic
- * similarity, keyword overlap, tag overlap, and recency. With a
- * `query` but no embedder, it ranks by keyword overlap. With no
- * `query`, it returns the newest memories matching `tags`.
+ * similarity, keyword overlap, tag overlap, and recency. With a `query` but no
+ * embedder, it ranks by keyword overlap. With no `query`, it returns the newest
+ * matching memories. The {@link StructuredFilter} fields restrict the candidate
+ * set before ranking.
  */
-export interface RecallQuery {
+export interface RecallQuery extends StructuredFilter {
   /** Natural-language query. Embedded and ranked by similarity. */
   query?: string
-  /** Only return memories that have ALL of these tags. */
-  tags?: string[]
   /** Upper bound on returned records. Default 20. */
   limit?: number
   /** Minimum semantic similarity 0..1. Default 0. */
@@ -130,21 +151,7 @@ export interface RecallQuery {
  * over stored memories. Every field is optional; an empty filter returns all
  * live memories newest-first.
  */
-export interface ListFilter {
-  /** Restrict to memories carrying these tags. */
-  tags?: string[]
-  /** 'all' (default) requires every tag; 'any' requires at least one. */
-  tagMatch?: 'all' | 'any'
-  /** Restrict to a single `type`. */
-  type?: string
-  /** Inclusive lower bound on importance (0..1). */
-  minImportance?: number
-  /** Inclusive upper bound on importance (0..1). */
-  maxImportance?: number
-  /** Only memories created at or after this ISO timestamp. */
-  createdAfter?: string
-  /** Only memories created at or before this ISO timestamp. */
-  createdBefore?: string
+export interface ListFilter extends StructuredFilter {
   /** Include soft-deleted memories. Default false. */
   includeDeleted?: boolean
   /** Sort field. Default 'createdAt'. */

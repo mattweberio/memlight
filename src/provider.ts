@@ -31,6 +31,7 @@ import {
   type DuplicateCheck,
   type RecallQuery,
   type ListFilter,
+  type StructuredFilter,
   type SearchWeights,
   type Embedder,
 } from './types.js'
@@ -327,7 +328,7 @@ async function recallMemories(
 
   // No usable query vector: keyword path if there is query text, else newest.
   if (!queryVec || queryVec.length === 0) {
-    const rows = await candidateRows(pg, q.tags ?? [])
+    const rows = await candidateRows(pg, q)
     if (!hasQuery) {
       return rows.slice(0, limit).map(rowToRecord)
     }
@@ -337,20 +338,17 @@ async function recallMemories(
     return top
   }
 
-  // Vector path: pull a similarity-ordered pool, then blend in JS.
+  // Vector path: pull a similarity-ordered pool (filtered), then blend in JS.
   const pool = Math.max(limit * 4, 50)
-  const tagFilter = (q.tags ?? []).length > 0
   const vec = formatVector(queryVec)
-  const sql = tagFilter
-    ? `SELECT ${MEMORY_COLUMNS}, 1 - (embedding <=> $1::vector) AS score
-         FROM memories
-         WHERE deleted_at IS NULL AND embedding IS NOT NULL AND tags @> $2::jsonb
-         ORDER BY embedding <=> $1::vector LIMIT $3;`
-    : `SELECT ${MEMORY_COLUMNS}, 1 - (embedding <=> $1::vector) AS score
-         FROM memories
-         WHERE deleted_at IS NULL AND embedding IS NOT NULL
-         ORDER BY embedding <=> $1::vector LIMIT $2;`
-  const params = tagFilter ? [vec, JSON.stringify(q.tags), pool] : [vec, pool]
+  const params: unknown[] = [vec]
+  const where = ['deleted_at IS NULL', 'embedding IS NOT NULL', ...structuredFilterClauses(q, params)]
+  const limitIdx = params.length + 1
+  params.push(pool)
+  const sql = `SELECT ${MEMORY_COLUMNS}, 1 - (embedding <=> $1::vector) AS score
+       FROM memories
+       WHERE ${where.join(' AND ')}
+       ORDER BY embedding <=> $1::vector LIMIT $${limitIdx};`
   const result = await pg.query<MemoryRow & { score: number }>(sql, params)
 
   const ranked = rankRows(result.rows, q.query as string, q.tags ?? [], weights, (row) => row.score ?? 0)
@@ -360,19 +358,15 @@ async function recallMemories(
   return top
 }
 
-/** Fetch live rows, optionally tag-filtered, newest first (the candidate set). */
-async function candidateRows(pg: PGlite, tags: string[]): Promise<MemoryRow[]> {
-  if (tags.length === 0) {
-    const result = await pg.query<MemoryRow>(
-      `SELECT ${MEMORY_COLUMNS} FROM memories
-         WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500;`,
-    )
-    return result.rows
-  }
+/** Fetch live rows matching the structured filter, newest first (candidate set). */
+async function candidateRows(pg: PGlite, filter: StructuredFilter): Promise<MemoryRow[]> {
+  const params: unknown[] = []
+  const where = ['deleted_at IS NULL', ...structuredFilterClauses(filter, params)]
+  params.push(500)
   const result = await pg.query<MemoryRow>(
     `SELECT ${MEMORY_COLUMNS} FROM memories
-       WHERE deleted_at IS NULL AND tags @> $1::jsonb ORDER BY created_at DESC LIMIT 500;`,
-    [JSON.stringify(tags)],
+       WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT $${params.length};`,
+    params,
   )
   return result.rows
 }
@@ -440,41 +434,51 @@ const LIST_SORT_COLUMNS: Record<NonNullable<ListFilter['sortBy']>, string> = {
   lastAccessed: 'last_accessed',
 }
 
-async function listMemories(pg: PGlite, filter: ListFilter): Promise<MemoryRecord[]> {
-  const where: string[] = []
-  const params: unknown[] = []
-  let n = 1
-
-  if (!filter.includeDeleted) where.push('deleted_at IS NULL')
+/**
+ * Build SQL WHERE fragments for a {@link StructuredFilter} (type, tags,
+ * importance range, date range). Pushes bound values onto `params` and returns
+ * the clauses (joined with AND by the caller). Shared by list and recall so
+ * both filter the candidate set identically.
+ */
+function structuredFilterClauses(filter: StructuredFilter, params: unknown[]): string[] {
+  const clauses: string[] = []
   if (filter.type !== undefined) {
-    where.push(`type = $${n++}`)
+    clauses.push(`type = $${params.length + 1}`)
     params.push(filter.type)
   }
   if (filter.minImportance !== undefined) {
-    where.push(`importance >= $${n++}`)
+    clauses.push(`importance >= $${params.length + 1}`)
     params.push(filter.minImportance)
   }
   if (filter.maxImportance !== undefined) {
-    where.push(`importance <= $${n++}`)
+    clauses.push(`importance <= $${params.length + 1}`)
     params.push(filter.maxImportance)
   }
   if (filter.createdAfter !== undefined) {
-    where.push(`created_at >= $${n++}`)
+    clauses.push(`created_at >= $${params.length + 1}`)
     params.push(filter.createdAfter)
   }
   if (filter.createdBefore !== undefined) {
-    where.push(`created_at <= $${n++}`)
+    clauses.push(`created_at <= $${params.length + 1}`)
     params.push(filter.createdBefore)
   }
   if (filter.tags && filter.tags.length > 0) {
     if ((filter.tagMatch ?? 'all') === 'any') {
-      where.push(`tags ?| $${n++}::text[]`)
+      clauses.push(`tags ?| $${params.length + 1}::text[]`)
       params.push(filter.tags)
     } else {
-      where.push(`tags @> $${n++}::jsonb`)
+      clauses.push(`tags @> $${params.length + 1}::jsonb`)
       params.push(JSON.stringify(filter.tags))
     }
   }
+  return clauses
+}
+
+async function listMemories(pg: PGlite, filter: ListFilter): Promise<MemoryRecord[]> {
+  const params: unknown[] = []
+  const where: string[] = []
+  if (!filter.includeDeleted) where.push('deleted_at IS NULL')
+  where.push(...structuredFilterClauses(filter, params))
 
   const sortCol = LIST_SORT_COLUMNS[filter.sortBy ?? 'createdAt']
   const dir = (filter.sortDirection ?? 'desc') === 'asc' ? 'ASC' : 'DESC'
@@ -482,11 +486,11 @@ async function listMemories(pg: PGlite, filter: ListFilter): Promise<MemoryRecor
   let sql = `SELECT ${MEMORY_COLUMNS}, embedding FROM memories ${whereSql}
     ORDER BY ${sortCol} ${dir} NULLS LAST`
   if (filter.limit !== undefined) {
-    sql += ` LIMIT $${n++}`
+    sql += ` LIMIT $${params.length + 1}`
     params.push(filter.limit)
   }
   if (filter.offset !== undefined) {
-    sql += ` OFFSET $${n++}`
+    sql += ` OFFSET $${params.length + 1}`
     params.push(filter.offset)
   }
 

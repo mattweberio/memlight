@@ -38,6 +38,7 @@ export type {
   DuplicateCheck,
   RecallQuery,
   ListFilter,
+  StructuredFilter,
   SearchWeights,
   Embedder,
 } from './types.js'

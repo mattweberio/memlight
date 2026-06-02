@@ -130,6 +130,8 @@ Pass `{ dedup: true }` as the second argument to skip the write and return the e
 | `minScore` | `number` | Minimum semantic similarity 0 to 1. Default 0. |
 | `weights` | `Partial<SearchWeights>` | Override the ranking blend for this query. |
 
+Recall also accepts the structured filter fields shared with `list` (`type`, `tagMatch`, `minImportance`, `maxImportance`, `createdAfter`, `createdBefore`). They restrict the candidate set before ranking, so recall is a filtered semantic search.
+
 Recall ranks by a blend of semantic similarity, keyword overlap, tag overlap, and recency, with a small lift for higher importance. The default weights are `{ semantic: 0.45, keyword: 0.35, tag: 0.2 }` and they are renormalized across whichever signals a query actually uses. With a query and no embedder, recall ranks by keyword overlap. With no query, it returns the newest memories matching `tags`.
 
 ### list
