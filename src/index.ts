@@ -37,6 +37,7 @@ export type {
   DeleteOptions,
   DuplicateCheck,
   RecallQuery,
+  ListFilter,
   SearchWeights,
   Embedder,
 } from './types.js'

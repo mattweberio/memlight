@@ -2,6 +2,15 @@
 
 All notable changes to memlight.
 
+## 0.3.0 (2026-06-02)
+
+- `list(filter)`: a structured, non-vector query over stored memories. Filter
+  by `type`, `tags` (match all or any), importance range, and created-at range;
+  sort by createdAt / updatedAt / importance / accessCount / lastAccessed; page
+  with limit + offset; optionally include soft-deleted. Returns full records.
+  Complements `recall` (semantic) for host apps that need exact filtered listing
+  and aggregate stats.
+
 ## 0.2.0 (2026-06-01)
 
 Zero-config release. memlight now works with no arguments.

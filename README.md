@@ -92,6 +92,7 @@ The os-data root by platform:
 interface MemoryProvider {
   store(input: StoreInput, options?: StoreOptions): Promise<StoreResult>
   recall(query: RecallQuery): Promise<MemoryRecord[]>
+  list(filter?: ListFilter): Promise<MemoryRecord[]>
   get(id: string): Promise<MemoryRecord | null>
   update(id: string, input: UpdateInput): Promise<MemoryRecord | null>
   delete(id: string, options?: DeleteOptions): Promise<boolean>
@@ -130,6 +131,26 @@ Pass `{ dedup: true }` as the second argument to skip the write and return the e
 | `weights` | `Partial<SearchWeights>` | Override the ranking blend for this query. |
 
 Recall ranks by a blend of semantic similarity, keyword overlap, tag overlap, and recency, with a small lift for higher importance. The default weights are `{ semantic: 0.45, keyword: 0.35, tag: 0.2 }` and they are renormalized across whichever signals a query actually uses. With a query and no embedder, recall ranks by keyword overlap. With no query, it returns the newest memories matching `tags`.
+
+### list
+
+A structured, non-vector query for when you want exact filtering and ordering rather than relevance ranking. Use `recall` to answer "what is most relevant to this query"; use `list` to answer "give me these memories, filtered and sorted".
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `type` | `string` | Restrict to one type. |
+| `tags` | `string[]` | Restrict to these tags. |
+| `tagMatch` | `'all' \| 'any'` | `'all'` (default) requires every tag; `'any'` requires at least one. |
+| `minImportance` / `maxImportance` | `number` | Inclusive importance bounds (0 to 1). |
+| `createdAfter` / `createdBefore` | `string` | Inclusive ISO timestamp bounds. |
+| `includeDeleted` | `boolean` | Include soft-deleted memories. Default false. |
+| `sortBy` | `string` | `createdAt` (default), `updatedAt`, `importance`, `accessCount`, or `lastAccessed`. |
+| `sortDirection` | `'asc' \| 'desc'` | Default `desc`. |
+| `limit` / `offset` | `number` | Paging. |
+
+```ts
+const recent = await memory.list({ type: 'note', tags: ['project'], minImportance: 0.5, limit: 20 })
+```
 
 ### config
 

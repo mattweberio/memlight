@@ -122,6 +122,38 @@ export interface RecallQuery {
   weights?: Partial<SearchWeights>
 }
 
+/**
+ * Filter for {@link MemoryProvider.list}, a structured (non-vector) query
+ * over stored memories. Every field is optional; an empty filter returns all
+ * live memories newest-first.
+ */
+export interface ListFilter {
+  /** Restrict to memories carrying these tags. */
+  tags?: string[]
+  /** 'all' (default) requires every tag; 'any' requires at least one. */
+  tagMatch?: 'all' | 'any'
+  /** Restrict to a single `type`. */
+  type?: string
+  /** Inclusive lower bound on importance (0..1). */
+  minImportance?: number
+  /** Inclusive upper bound on importance (0..1). */
+  maxImportance?: number
+  /** Only memories created at or after this ISO timestamp. */
+  createdAfter?: string
+  /** Only memories created at or before this ISO timestamp. */
+  createdBefore?: string
+  /** Include soft-deleted memories. Default false. */
+  includeDeleted?: boolean
+  /** Sort field. Default 'createdAt'. */
+  sortBy?: 'createdAt' | 'updatedAt' | 'importance' | 'accessCount' | 'lastAccessed'
+  /** Sort direction. Default 'desc'. */
+  sortDirection?: 'asc' | 'desc'
+  /** Maximum rows to return. */
+  limit?: number
+  /** Rows to skip (for paging). */
+  offset?: number
+}
+
 /** One edge in the memory graph. */
 export interface MemoryEdge {
   id: string
@@ -169,6 +201,9 @@ export interface MemoryProvider {
   store(input: StoreInput, options?: StoreOptions): Promise<StoreResult>
   /** Recall memories ranked by relevance and recency. */
   recall(query: RecallQuery): Promise<MemoryRecord[]>
+  /** Structured (non-vector) query: filter by type/tags/importance/date,
+   *  sort, and page. Returns full records newest-first by default. */
+  list(filter?: ListFilter): Promise<MemoryRecord[]>
   /** Fetch one memory by id, or null if missing or soft-deleted. */
   get(id: string): Promise<MemoryRecord | null>
   /** Merge changes into an existing memory. Re-embeds if content changes.

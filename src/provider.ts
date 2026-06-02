@@ -30,6 +30,7 @@ import {
   type DeleteOptions,
   type DuplicateCheck,
   type RecallQuery,
+  type ListFilter,
   type SearchWeights,
   type Embedder,
 } from './types.js'
@@ -89,6 +90,7 @@ export async function createMemoryProvider(
   return {
     store: (input, options) => storeMemory(pg, embed, vectorDim, input, options),
     recall: (query) => recallMemories(pg, embed, weights, query),
+    list: (filter) => listMemories(pg, filter ?? {}),
     get: (id) => getMemory(pg, id),
     update: (id, input) => updateMemory(pg, embed, vectorDim, id, input),
     delete: (id, options) => deleteMemory(pg, id, options),
@@ -422,6 +424,72 @@ async function bumpAccess(pg: PGlite, ids: string[]): Promise<void> {
        WHERE id = ANY($1::text[]);`,
     [ids],
   )
+}
+
+// ---------------------------------------------------------------------------
+// List (structured query)
+// ---------------------------------------------------------------------------
+
+const LIST_SORT_COLUMNS: Record<NonNullable<ListFilter['sortBy']>, string> = {
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  importance: 'importance',
+  accessCount: 'access_count',
+  lastAccessed: 'last_accessed',
+}
+
+async function listMemories(pg: PGlite, filter: ListFilter): Promise<MemoryRecord[]> {
+  const where: string[] = []
+  const params: unknown[] = []
+  let n = 1
+
+  if (!filter.includeDeleted) where.push('deleted_at IS NULL')
+  if (filter.type !== undefined) {
+    where.push(`type = $${n++}`)
+    params.push(filter.type)
+  }
+  if (filter.minImportance !== undefined) {
+    where.push(`importance >= $${n++}`)
+    params.push(filter.minImportance)
+  }
+  if (filter.maxImportance !== undefined) {
+    where.push(`importance <= $${n++}`)
+    params.push(filter.maxImportance)
+  }
+  if (filter.createdAfter !== undefined) {
+    where.push(`created_at >= $${n++}`)
+    params.push(filter.createdAfter)
+  }
+  if (filter.createdBefore !== undefined) {
+    where.push(`created_at <= $${n++}`)
+    params.push(filter.createdBefore)
+  }
+  if (filter.tags && filter.tags.length > 0) {
+    if ((filter.tagMatch ?? 'all') === 'any') {
+      where.push(`tags ?| $${n++}::text[]`)
+      params.push(filter.tags)
+    } else {
+      where.push(`tags @> $${n++}::jsonb`)
+      params.push(JSON.stringify(filter.tags))
+    }
+  }
+
+  const sortCol = LIST_SORT_COLUMNS[filter.sortBy ?? 'createdAt']
+  const dir = (filter.sortDirection ?? 'desc') === 'asc' ? 'ASC' : 'DESC'
+  const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''
+  let sql = `SELECT ${MEMORY_COLUMNS} FROM memories ${whereSql}
+    ORDER BY ${sortCol} ${dir} NULLS LAST`
+  if (filter.limit !== undefined) {
+    sql += ` LIMIT $${n++}`
+    params.push(filter.limit)
+  }
+  if (filter.offset !== undefined) {
+    sql += ` OFFSET $${n++}`
+    params.push(filter.offset)
+  }
+
+  const result = await pg.query<MemoryRow>(sql, params)
+  return result.rows.map(rowToRecord)
 }
 
 // ---------------------------------------------------------------------------
