@@ -2,6 +2,12 @@
 
 All notable changes to memlight.
 
+## 0.3.1 (2026-06-02)
+
+- `get()` and `list()` now include the stored `embedding` vector on each record,
+  so host apps can run their own vector math without a second embedder. recall()
+  still omits it (kept lean), and it is absent when no embedder ran.
+
 ## 0.3.0 (2026-06-02)
 
 - `list(filter)`: a structured, non-vector query over stored memories. Filter

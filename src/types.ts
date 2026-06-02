@@ -25,6 +25,9 @@ export interface MemoryRecord {
   lastAccessed: string | null
   /** Present only on recall results. Cosine similarity 0..1, higher is better. */
   score?: number
+  /** The stored embedding vector. Populated by get() and list(); omitted from
+   *  recall results to keep them lean, and absent when no embedder was used. */
+  embedding?: number[]
 }
 
 /**

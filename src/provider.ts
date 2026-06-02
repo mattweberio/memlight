@@ -46,6 +46,8 @@ interface MemoryRow {
   updated_at: string
   access_count: number
   last_accessed: string | null
+  /** pgvector text form ('[1,2,3]') when the column is selected. */
+  embedding?: string | null
 }
 
 interface EdgeRow {
@@ -477,7 +479,7 @@ async function listMemories(pg: PGlite, filter: ListFilter): Promise<MemoryRecor
   const sortCol = LIST_SORT_COLUMNS[filter.sortBy ?? 'createdAt']
   const dir = (filter.sortDirection ?? 'desc') === 'asc' ? 'ASC' : 'DESC'
   const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''
-  let sql = `SELECT ${MEMORY_COLUMNS} FROM memories ${whereSql}
+  let sql = `SELECT ${MEMORY_COLUMNS}, embedding FROM memories ${whereSql}
     ORDER BY ${sortCol} ${dir} NULLS LAST`
   if (filter.limit !== undefined) {
     sql += ` LIMIT $${n++}`
@@ -498,7 +500,7 @@ async function listMemories(pg: PGlite, filter: ListFilter): Promise<MemoryRecor
 
 async function getMemory(pg: PGlite, id: string): Promise<MemoryRecord | null> {
   const result = await pg.query<MemoryRow>(
-    `SELECT ${MEMORY_COLUMNS} FROM memories WHERE id = $1 AND deleted_at IS NULL;`,
+    `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE id = $1 AND deleted_at IS NULL;`,
     [id],
   )
   return result.rows[0] ? rowToRecord(result.rows[0]) : null
@@ -750,6 +752,9 @@ function rowToRecord(row: MemoryRow & { score?: number }): MemoryRecord {
     lastAccessed: row.last_accessed ? normalizeTimestamp(row.last_accessed) : null,
   }
   if (row.score !== undefined) record.score = row.score
+  if (typeof row.embedding === 'string' && row.embedding.length > 0) {
+    record.embedding = JSON.parse(row.embedding) as number[]
+  }
   return record
 }
 
