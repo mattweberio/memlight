@@ -7,9 +7,9 @@
 [![node](https://img.shields.io/node/v/memlight.svg)](https://nodejs.org)
 [![CI](https://github.com/mattweberio/memlight/actions/workflows/ci.yml/badge.svg)](https://github.com/mattweberio/memlight/actions/workflows/ci.yml)
 
-Embedded vector memory for AI agents. It runs inside your process, stores on the local machine, and works with no configuration. There is no server to run, no API key to set, and no setup step before the first `store`.
+Embedded vector memory for AI agents. It runs inside your process, stores on the local machine, and works with no configuration. There is no server to run, no API key to set, and no setup or runtime model download before the first `store`.
 
-It is built on [PGlite](https://github.com/electric-sql/pglite) (Postgres compiled to WebAssembly) with [pgvector](https://github.com/pgvector/pgvector) for similarity search. By default, semantic recall uses a local Transformers.js embedder that is loaded lazily. If you do not want model-backed semantic search, pass `embedder: 'none'` for keyword and tag recall, or bring your own embedder.
+It is built on [PGlite](https://github.com/electric-sql/pglite) (Postgres compiled to WebAssembly) with [pgvector](https://github.com/pgvector/pgvector) for similarity search. By default, semantic recall uses a packaged local Transformers.js embedder. The model files are included in the npm tarball, so `npm install memlight` installs everything the default path needs.
 
 ## Quick start
 
@@ -42,9 +42,9 @@ Requires Node 22 or newer.
 
 ## What it is
 
-- **Zero config.** A lazy local embedder and an automatic storage location mean a working memory in two lines.
+- **Zero config.** A packaged local embedder and an automatic storage location mean a working memory in two lines.
 - **Semantic recall.** Real cosine similarity over pgvector, blended with keyword overlap, tag overlap, and recency.
-- **Local and private.** Everything runs in process. No network at query time, no third party, no key.
+- **Local and private.** Everything runs in process. No model download at runtime, no third party, no key.
 - **Embedded.** The whole database lives in one directory under the user's home. No Postgres server, no Docker, no native build.
 - **Swappable.** Bring your own embedder (Ollama, OpenAI, anything) when you want to.
 
@@ -57,12 +57,12 @@ Requires Node 22 or newer.
 
 | Concern | Default | Override |
 | --- | --- | --- |
-| Embedder | `Xenova/bge-small-en-v1.5`, 384 dims, local | `embedder` option |
+| Embedder | packaged `Xenova/bge-small-en-v1.5`, 384 dims, local | `embedder` option |
 | Storage | OS app-data dir, namespaced by `name` | `dataDir`, `name`, `scope` |
 | Recall | Hybrid: semantic + keyword + tag + recency | `weights` option |
 | Delete | Soft delete, recoverable | `delete(id, { hard: true })` |
 
-The default embedder downloads its model the first time you store or recall with semantic search, then reuses the shared on-disk cache. There is no manual model setup, and there is no network call during ordinary query execution once the model is cached. To avoid model download entirely, use `createMemoryProvider({ embedder: 'none' })` or pass your own `embedder`.
+The default embedder is bundled in the npm package. It does not fetch model weights from Hugging Face at runtime. To avoid model-backed semantic search entirely, use `createMemoryProvider({ embedder: 'none' })` for keyword and tag recall, or pass your own `embedder`.
 
 ## Storage location
 
@@ -162,7 +162,7 @@ const recent = await memory.list({ type: 'note', tags: ['project'], minImportanc
 | `dataDir` | `string` | Explicit path. Overrides `name` and `scope`. `'memory://'` is ephemeral. |
 | `name` | `string` | App name for the default path. Default `memlight`. |
 | `scope` | `string` | Optional project id for per-project isolation. |
-| `embedder` | `Embedder \| 'none'` | Omit for the lazy local default. `'none'` is keyword and tag only. A function brings your own. |
+| `embedder` | `Embedder \| 'none'` | Omit for the packaged local default. `'none'` is keyword and tag only. A function brings your own. |
 | `vectorDim` | `number` | Defaults to the embedder's output (384 for the bundled default). Fixed at the first store. |
 | `weights` | `Partial<SearchWeights>` | Default ranking weights for every recall. |
 

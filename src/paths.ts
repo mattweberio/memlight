@@ -63,11 +63,7 @@ export function resolveDataDir(loc: StorageLocation): string {
   return dir
 }
 
-/**
- * Shared cache directory for the bundled embedding model. One cache
- * across every name/scope so the model is downloaded once per machine
- * rather than once per project.
- */
+/** Legacy cache directory used before the default model was bundled. */
 export function modelCacheDir(): string {
   const dir = join(osDataRoot(), 'memlight', 'models')
   mkdirSync(dir, { recursive: true })

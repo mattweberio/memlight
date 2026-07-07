@@ -2,6 +2,13 @@
 
 All notable changes to memlight.
 
+## 0.4.2 (2026-07-07)
+
+- Bundled the default `Xenova/bge-small-en-v1.5` quantized model files in the
+  npm package.
+- Disabled remote model loading for the default embedder. The zero-config path
+  no longer downloads model weights at runtime.
+
 ## 0.4.1 (2026-07-07)
 
 - Clarified npm README wording around the default embedder: semantic search uses

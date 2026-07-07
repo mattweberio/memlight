@@ -2,9 +2,8 @@
  * Bundled default embedder.
  *
  * memlight works with zero configuration: if you do not supply your
- * own embedder, it uses a local model that runs in-process with no
- * API key and no network at query time (the model is downloaded once
- * to a shared cache on first use).
+ * own embedder, it uses a packaged local model that runs in-process
+ * with no API key and no runtime model download.
  *
  * Model: Xenova/bge-small-en-v1.5, 384 dimensions, run through
  * transformers.js with mean pooling and L2 normalization, so the
@@ -12,10 +11,9 @@
  *
  * The transformers.js dependency is loaded lazily the first time the
  * default embedder runs, so apps that pass their own embedder never
- * pay for it.
+ * pay for it. The model files themselves ship in the npm tarball.
  */
 
-import { modelCacheDir } from './paths.js'
 import type { Embedder } from './types.js'
 
 /** The bundled model. Swap by passing your own embedder instead. */
@@ -37,7 +35,9 @@ function loadExtractor(): Promise<FeatureExtractor> {
   if (!extractor) {
     extractor = (async () => {
       const { env, pipeline } = await import('@huggingface/transformers')
-      env.cacheDir = modelCacheDir()
+      env.allowRemoteModels = false
+      env.allowLocalModels = true
+      env.localModelPath = new URL('../models/', import.meta.url).pathname
       const pipe = await pipeline('feature-extraction', DEFAULT_EMBEDDING_MODEL, { dtype: 'q8' })
       return pipe as unknown as FeatureExtractor
     })()
