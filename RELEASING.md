@@ -1,65 +1,60 @@
 # Releasing memlight
 
-memlight is developed here (inside the akemi monorepo) but ships as a
-standalone public repo + npm package. It has zero monorepo coupling — its only
-runtime dependency is `@electric-sql/pglite` — so extraction is a clean copy.
+memlight ships as the public npm package `memlight`.
 
-## One-time: extract to its own public repo
+## Preconditions
 
-Run from a scratch dir (you run these — repo creation + npm publish are yours):
+- Node.js 22 or newer.
+- npm authentication for the `matt.weber.io` npm account or another maintainer
+  with publish rights.
+- A clean `main` branch.
+- The version in `package.json` and the top entry in `CHANGELOG.md` agree.
+
+For non-interactive publishing, use an npm automation token in `~/.npmrc`:
 
 ```bash
-# 1. Create the public repo
-gh repo create mattweberio/memlight --public \
-  --description "Embedded vector memory for AI agents. PGlite + pgvector."
-
-# 2. Copy the package contents (NOT the monorepo wrapper)
-mkdir memlight && cd memlight
-cp -r /var/www/sandbox/akemi/packages/memlight/{src,test,README.md,LICENSE,CHANGELOG.md,RELEASING.md,package.json,tsconfig.json,vitest.config.ts,.gitignore} .
-
-# 3. Init + push
-git init && git add -A && git commit -m "memlight 0.1.0"
-git branch -M main
-git remote add origin https://github.com/mattweberio/memlight.git
-git push -u origin main
+//registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxxxxxx
 ```
 
-## Publish to npm
+Do not commit `.npmrc` or real tokens.
+
+## Dry Run
 
 ```bash
 npm ci
-npm run release        # → publish.sh: preflight, then npm publish (build+test via prepublishOnly)
+npm run type-check
+npm test
+npm pack --dry-run
+npm run release -- --dry-run
 ```
 
-`npm run release` runs `publish.sh`, which does the five-step contract:
-clean-tree/main/auth preflight, then `npm publish` (whose `prepublishOnly` builds
-+ runs the tests), then a registry verify.
+The package tarball should contain only built `dist/` files plus package
+metadata and docs allowed by `package.json#files`.
 
-The command is `npm run release`, **not** `npm run publish`: `publish` is a
-reserved npm lifecycle hook (npm auto-runs a script named `publish` right after
-`npm publish`), so a `publish` script recurses and double-publishes. Use `release`.
+## Publish
 
-### npm 2FA: use an automation token
-
-This npm account uses **web-based 2FA**, which a non-interactive shell can't
-complete (it errors `EOTP`). For any scripted publish, put an **automation
-token** in `~/.npmrc` — it bypasses 2FA for that token:
+1. Update `package.json`.
+2. Update `CHANGELOG.md`.
+3. Commit the release changes.
+4. Run:
 
 ```bash
-# npmjs.com → Access Tokens → Generate New Token → Automation
-echo "//registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxxxxxx" >> ~/.npmrc
-npm run publish
+npm run release
 ```
 
-(On a TOTP account you could instead pass `./publish.sh --otp=123456`, but this
-account is web-2FA, so the token is the correct path.)
+The `release` script calls `publish.sh`, which checks for a clean tree and npm
+authentication before running `npm publish`. The `prepublishOnly` script builds
+and tests immediately before upload.
 
-`memlight` is free on npm. After publish, Akemi depends on it as a normal
-registry dependency (`"memlight": "^0.1.0"`) instead of the workspace link;
-during local dev you can `npm link memlight` against this checkout.
+Do not add an npm script named `publish`; npm treats that as a lifecycle hook
+and runs it during `npm publish`.
 
-## Verify the tarball before publishing
+## Verify
 
 ```bash
-npm pack            # inspect the .tgz: it must ship only dist/, README, LICENSE, CHANGELOG
+npm view memlight version
+npm view memlight dist.tarball
+npm pack --dry-run
 ```
+
+The latest registry version should match `package.json`.

@@ -18,6 +18,7 @@
   ],
   "license": "MIT",
   "author": "Matt Weber",
+  "sideEffects": false,
   "homepage": "https://github.com/mattweberio/memlight#readme",
   "repository": {
     "type": "git",
@@ -39,7 +40,8 @@
     "dist/",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "SECURITY.md"
   ],
   "publishConfig": {
     "access": "public",

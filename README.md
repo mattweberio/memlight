@@ -5,6 +5,7 @@
 [![license](https://img.shields.io/npm/l/memlight.svg)](./LICENSE)
 [![types](https://img.shields.io/npm/types/memlight.svg)](./dist/index.d.ts)
 [![node](https://img.shields.io/node/v/memlight.svg)](https://nodejs.org)
+[![CI](https://github.com/mattweberio/memlight/actions/workflows/ci.yml/badge.svg)](https://github.com/mattweberio/memlight/actions/workflows/ci.yml)
 
 Embedded vector memory for AI agents. It runs inside your process, stores on the local machine, and works with no configuration. There is no server to run, no API key to set, and nothing to wire up before the first `store`.
 
@@ -238,3 +239,17 @@ MIT. See [LICENSE](./LICENSE).
 ## Source and issues
 
 [github.com/mattweberio/memlight](https://github.com/mattweberio/memlight)
+
+## Package metadata
+
+| Field | Value |
+| --- | --- |
+| npm package | `memlight` |
+| Source | <https://github.com/mattweberio/memlight> |
+| Issues | <https://github.com/mattweberio/memlight/issues> |
+| License | MIT |
+| Runtime | Node.js 22 or newer, ESM |
+
+Release instructions live in [RELEASING.md](./RELEASING.md). Public repo
+contribution and security guidance live in [CONTRIBUTING.md](./CONTRIBUTING.md)
+and [SECURITY.md](./SECURITY.md).

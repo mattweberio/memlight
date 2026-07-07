@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible memlight bug
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Minimal TypeScript or JavaScript that reproduces it.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "npm ls memlight"
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "Node version, OS, package manager"
+  - type: textarea
+    id: data
+    attributes:
+      label: Data sensitivity
+      description: Confirm that examples and logs are synthetic or redacted.
+
