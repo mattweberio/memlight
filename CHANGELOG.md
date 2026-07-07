@@ -2,6 +2,13 @@
 
 All notable changes to memlight.
 
+## 0.4.1 (2026-07-07)
+
+- Clarified npm README wording around the default embedder: semantic search uses
+  a lazy local model with a shared cache, while `embedder: 'none'` avoids model
+  download entirely.
+- Refreshed package metadata for the public npm listing.
+
 ## 0.4.0 (2026-06-02)
 
 - `recall()` now accepts the same structured filters as `list()` (type, tags

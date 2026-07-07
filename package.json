@@ -1,7 +1,7 @@
 {
   "name": "memlight",
-  "version": "0.4.0",
-  "description": "Zero-config embedded vector memory for AI agents. Bundled local embedder, OS storage, hybrid recall, decay, dedup. PGlite + pgvector.",
+  "version": "0.4.1",
+  "description": "Zero-config embedded vector memory for AI agents. Lazy local embedder, OS storage, hybrid recall, decay, dedup. PGlite + pgvector.",
   "keywords": [
     "memory",
     "vector",

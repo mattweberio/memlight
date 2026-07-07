@@ -7,9 +7,9 @@
 [![node](https://img.shields.io/node/v/memlight.svg)](https://nodejs.org)
 [![CI](https://github.com/mattweberio/memlight/actions/workflows/ci.yml/badge.svg)](https://github.com/mattweberio/memlight/actions/workflows/ci.yml)
 
-Embedded vector memory for AI agents. It runs inside your process, stores on the local machine, and works with no configuration. There is no server to run, no API key to set, and nothing to wire up before the first `store`.
+Embedded vector memory for AI agents. It runs inside your process, stores on the local machine, and works with no configuration. There is no server to run, no API key to set, and no setup step before the first `store`.
 
-It is built on [PGlite](https://github.com/electric-sql/pglite) (Postgres compiled to WebAssembly) with [pgvector](https://github.com/pgvector/pgvector) for similarity search, and ships a local embedding model so semantic recall works out of the box.
+It is built on [PGlite](https://github.com/electric-sql/pglite) (Postgres compiled to WebAssembly) with [pgvector](https://github.com/pgvector/pgvector) for similarity search. By default, semantic recall uses a local Transformers.js embedder that is loaded lazily. If you do not want model-backed semantic search, pass `embedder: 'none'` for keyword and tag recall, or bring your own embedder.
 
 ## Quick start
 
@@ -28,7 +28,7 @@ const hits = await memory.recall({ query: 'how does Matt like to be talked to' }
 // hits[0].content -> 'Matt prefers concise answers with examples'
 ```
 
-That is the whole setup. No data directory, no embedder, no keys.
+That is the whole setup. No data directory, no embedder function, no keys.
 
 ## Install
 
@@ -42,7 +42,7 @@ Requires Node 22 or newer.
 
 ## What it is
 
-- **Zero config.** A bundled local embedder and an automatic storage location mean a working memory in two lines.
+- **Zero config.** A lazy local embedder and an automatic storage location mean a working memory in two lines.
 - **Semantic recall.** Real cosine similarity over pgvector, blended with keyword overlap, tag overlap, and recency.
 - **Local and private.** Everything runs in process. No network at query time, no third party, no key.
 - **Embedded.** The whole database lives in one directory under the user's home. No Postgres server, no Docker, no native build.
@@ -62,7 +62,7 @@ Requires Node 22 or newer.
 | Recall | Hybrid: semantic + keyword + tag + recency | `weights` option |
 | Delete | Soft delete, recoverable | `delete(id, { hard: true })` |
 
-The model downloads once on first use and is cached on disk. After that it loads in about a second with no network.
+The default embedder downloads its model the first time you store or recall with semantic search, then reuses the shared on-disk cache. There is no manual model setup, and there is no network call during ordinary query execution once the model is cached. To avoid model download entirely, use `createMemoryProvider({ embedder: 'none' })` or pass your own `embedder`.
 
 ## Storage location
 
@@ -162,7 +162,7 @@ const recent = await memory.list({ type: 'note', tags: ['project'], minImportanc
 | `dataDir` | `string` | Explicit path. Overrides `name` and `scope`. `'memory://'` is ephemeral. |
 | `name` | `string` | App name for the default path. Default `memlight`. |
 | `scope` | `string` | Optional project id for per-project isolation. |
-| `embedder` | `Embedder \| 'none'` | Omit for the bundled default. `'none'` is keyword and tag only. A function brings your own. |
+| `embedder` | `Embedder \| 'none'` | Omit for the lazy local default. `'none'` is keyword and tag only. A function brings your own. |
 | `vectorDim` | `number` | Defaults to the embedder's output (384 for the bundled default). Fixed at the first store. |
 | `weights` | `Partial<SearchWeights>` | Default ranking weights for every recall. |
 
