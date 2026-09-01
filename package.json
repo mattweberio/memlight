@@ -59,7 +59,7 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@electric-sql/pglite": "^0.4.4",
+    "@electric-sql/pglite": "^0.5.8",
     "@huggingface/transformers": "^4.2.0"
   },
   "devDependencies": {
